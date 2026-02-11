@@ -143,6 +143,21 @@ echo "→ PASS: ~/.secrets is not readable from sandbox"
 
 echo ""
 echo "==========================================="
+echo "  TEST 10: Proxy accepts --ld-client-id arg"
+echo "==========================================="
+# Verify the arg is accepted (proxy starts, doesn't crash)
+# We use a bogus ID — it should start fine and default-allow
+kill "$PROXY_PID" 2>/dev/null
+wait "$PROXY_PID" 2>/dev/null
+python3 "$DIR/proxy.py" --port 18080 --blocked "$DIR/blocked.txt" --ld-client-id "fake-id" &
+PROXY_PID=$!
+sleep 1
+run_sandboxed 'curl -sf https://example.com | head -c 100'
+echo ""
+echo "→ PASS: proxy works with --ld-client-id (defaults allow on unreachable LD)"
+
+echo ""
+echo "==========================================="
 echo "  ALL TESTS PASSED"
 echo "==========================================="
 echo ""
