@@ -5,6 +5,7 @@
 set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
 SANDBOX_PROFILE="$DIR/sandbox.sb"
+SANDBOX_ARGS=(-D "SECRETS_DIR=$HOME/.secrets")
 PROXY="http://localhost:18080"
 PROXY_PID=""
 
@@ -20,7 +21,7 @@ PROXY_PID=$!
 sleep 1
 
 run_sandboxed() {
-    sandbox-exec -f "$SANDBOX_PROFILE" \
+    sandbox-exec -f "$SANDBOX_PROFILE" "${SANDBOX_ARGS[@]}" \
         env http_proxy="$PROXY" https_proxy="$PROXY" \
             HTTP_PROXY="$PROXY" HTTPS_PROXY="$PROXY" \
             no_proxy="localhost,127.0.0.1" \
@@ -42,7 +43,7 @@ echo "==========================================="
 echo "  TEST 2: Direct outbound (bypass proxy)"
 echo "==========================================="
 echo "(Trying direct connect without proxy — should fail)"
-sandbox-exec -f "$SANDBOX_PROFILE" \
+sandbox-exec -f "$SANDBOX_PROFILE" "${SANDBOX_ARGS[@]}" \
     curl -sf --max-time 3 https://example.com 2>&1 || true
 echo "→ PASS: sandbox blocked direct connection"
 
@@ -50,7 +51,7 @@ echo ""
 echo "==========================================="
 echo "  TEST 3: Raw socket (python, no proxy)"
 echo "==========================================="
-sandbox-exec -f "$SANDBOX_PROFILE" \
+sandbox-exec -f "$SANDBOX_PROFILE" "${SANDBOX_ARGS[@]}" \
     python3 -c "
 import socket
 try:
@@ -85,7 +86,7 @@ echo "==========================================="
 echo "  TEST 6: Node.js fetch WITHOUT proxy (should fail)"
 echo "==========================================="
 if command -v node >/dev/null 2>&1; then
-    sandbox-exec -f "$SANDBOX_PROFILE" \
+    sandbox-exec -f "$SANDBOX_PROFILE" "${SANDBOX_ARGS[@]}" \
         node -e "fetch('https://example.com').then(r=>console.log('FAIL: should not reach here')).catch(e=>console.log('PASS: blocked -',e.cause?.code||e.message))" 2>&1
     echo "→ PASS: sandbox blocks Node.js without proxy config"
 else
@@ -110,8 +111,7 @@ echo ""
 echo "==========================================="
 echo "  TEST 8: Localhost still works"
 echo "==========================================="
-# Start a tiny local server inside the sandbox
-sandbox-exec -f "$SANDBOX_PROFILE" \
+sandbox-exec -f "$SANDBOX_PROFILE" "${SANDBOX_ARGS[@]}" \
     bash -c '
 python3 -c "
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -133,14 +133,24 @@ echo "→ PASS: localhost communication works"
 
 echo ""
 echo "==========================================="
+echo "  TEST 9: ~/.secrets is blocked"
+echo "==========================================="
+mkdir -p "$HOME/.secrets"
+echo "secret-api-key-12345" > "$HOME/.secrets/test.txt"
+sandbox-exec -f "$SANDBOX_PROFILE" "${SANDBOX_ARGS[@]}" \
+    cat "$HOME/.secrets/test.txt" 2>&1 || true
+echo "→ PASS: ~/.secrets is not readable from sandbox"
+
+echo ""
+echo "==========================================="
 echo "  ALL TESTS PASSED"
 echo "==========================================="
 echo ""
 echo "Check connections.log for the full traffic log."
 echo ""
-echo "To use with goose:"
+echo "To use with an agent:"
 echo "  Terminal 1:  ./start-proxy.sh"
-echo "  Terminal 2:  ./start-goose.sh"
+echo "  Terminal 2:  ./start-goose.sh  or  ./start-claude.sh  or  ./start-pi.sh"
 echo ""
 echo "To block a domain live:"
 echo "  echo 'evil.com' >> blocked.txt"

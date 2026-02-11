@@ -1,9 +1,16 @@
-;; Sandbox profile: allow everything EXCEPT direct outbound network.
+;; Sandbox profile: allow everything EXCEPT direct outbound network and sensitive dirs.
 ;; The process can only reach the network via localhost (where our proxy lives).
 ;; All child processes inherit this restriction.
+;;
+;; Parameters (pass via sandbox-exec -D):
+;;   SECRETS_DIR — path to block (e.g. /Users/you/.secrets)
 
 (version 1)
 (allow default)
+
+;; Block access to sensitive directories
+(deny file-read* (subpath (param "SECRETS_DIR")))
+(deny file-write* (subpath (param "SECRETS_DIR")))
 
 ;; Block all network, then poke holes for localhost + DNS
 (deny network*)

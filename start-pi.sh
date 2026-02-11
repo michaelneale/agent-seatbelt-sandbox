@@ -22,7 +22,7 @@ echo "Proxy: $PROXY"
 echo "Blocked domains: $DIR/blocked.txt"
 echo ""
 
-exec sandbox-exec -f "$SANDBOX_PROFILE" \
+exec sandbox-exec -f "$SANDBOX_PROFILE" -D "SECRETS_DIR=$HOME/.secrets" \
     env \
         http_proxy="$PROXY" \
         https_proxy="$PROXY" \
